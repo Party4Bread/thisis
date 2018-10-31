@@ -6,6 +6,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"goji.io"
 	"goji.io/pat"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
 )
@@ -23,7 +24,34 @@ func Hello(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateShortLink(w http.ResponseWriter, r *http.Request) {
+	shurl, passwd := pat.Param(r, "lnk"), r.FormValue("changekey")
+	originURL := r.FormValue("originalurl")
 
+	var keyhash string
+	err := db.QueryRow("SELECT ChangeKey FROM URLstorage WHERE ShortedURL=?",
+		shurl).Scan(&keyhash)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			phash, err := bcrypt.GenerateFromPassword([]byte(passwd), 14)
+			if err != nil {
+				log.Fatal("bcrypt failure")
+			}
+			db.Query("INSERT INTO urlstorage (ShortedURL, OriginalURL, ChangeKey) VALUES (?,?,?)",
+				shurl, originURL, phash)
+			w.WriteHeader(http.StatusCreated)
+		} else {
+			log.Fatal("DB ERROR")
+		}
+	} else {
+		if bcrypt.CompareHashAndPassword([]byte(keyhash), []byte(passwd)) == nil {
+			db.Query("UPDATE urlstorage SET OriginalURL=? WHERE ShortedURL=?",
+				originURL, shurl)
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	}
 }
 
 func DeleteShortLink(w http.ResponseWriter, r *http.Request) {
@@ -31,11 +59,36 @@ func DeleteShortLink(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetShortLink(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "http://party4bread.github.io/", 301)
+	var originalUrl string
+	shurl := pat.Param(r, "lnk")
+	err := db.QueryRow("SELECT OriginalURL FROM URLstorage WHERE ShortedURL=?",
+		shurl).Scan(&originalUrl)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			//TODO: Add Link not Founded
+		} else {
+			//TODO: Add Database Error
+			log.Fatal("Database Fault on URL /" + shurl)
+		}
+	} else {
+		http.Redirect(w, r, originalUrl, http.StatusFound)
+	}
 }
 
 func CheckShortLink(w http.ResponseWriter, r *http.Request) {
-
+	shurl := pat.Param(r, "lnk")
+	err := db.QueryRow("SELECT OriginalURL FROM URLstorage WHERE ShortedURL=?",
+		shurl).Scan()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Fatal("Database Fault on URL /" + shurl)
+		}
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func InitDB() {
