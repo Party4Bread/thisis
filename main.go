@@ -5,8 +5,9 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"goji.io"
-	"goji.io/pat"
+	. "goji.io/pat"
 	"golang.org/x/crypto/bcrypt"
+	"io/ioutil"
 	"log"
 	"net/http"
 )
@@ -15,17 +16,15 @@ var db *sql.DB
 
 const DSN = "thisis:thisispasswd@/thisis"
 
+var INDEX string
+
 func Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Welcome!\n")
+	IndexLoad()
+	fmt.Fprint(w, INDEX)
 }
-
-func Hello(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "hello, %s!\n", pat.Param(r, "name"))
-}
-
 func CreateShortLink(w http.ResponseWriter, r *http.Request) {
-	shurl, passwd := pat.Param(r, "lnk"), r.FormValue("changekey")
-	originURL := r.FormValue("originalurl")
+	shurl, passwd, originURL :=
+		Param(r, "lnk"), r.FormValue("changekey"), r.FormValue("originalurl")
 
 	var keyhash string
 	err := db.QueryRow("SELECT ChangeKey FROM URLstorage WHERE ShortedURL=?",
@@ -55,19 +54,39 @@ func CreateShortLink(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteShortLink(w http.ResponseWriter, r *http.Request) {
+	shurl, passwd := Param(r, "lnk"), r.FormValue("changekey")
 
+	var keyhash string
+	err := db.QueryRow("SELECT ChangeKey FROM URLstorage WHERE ShortedURL=?",
+		shurl).Scan(&keyhash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Fatal("Database Fault on URL /" + shurl)
+		}
+	} else {
+		if bcrypt.CompareHashAndPassword([]byte(keyhash), []byte(passwd)) == nil {
+			db.Query("DELETE FROM URLstorage WHERE ShortedURL=?",
+				shurl)
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	}
 }
 
 func GetShortLink(w http.ResponseWriter, r *http.Request) {
 	var originalUrl string
-	shurl := pat.Param(r, "lnk")
+	shurl := Param(r, "lnk")
 	err := db.QueryRow("SELECT OriginalURL FROM URLstorage WHERE ShortedURL=?",
 		shurl).Scan(&originalUrl)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			//TODO: Add Link not Founded
+			http.NotFound(w, r)
 		} else {
-			//TODO: Add Database Error
+			w.WriteHeader(http.StatusInternalServerError)
 			log.Fatal("Database Fault on URL /" + shurl)
 		}
 	} else {
@@ -76,7 +95,7 @@ func GetShortLink(w http.ResponseWriter, r *http.Request) {
 }
 
 func CheckShortLink(w http.ResponseWriter, r *http.Request) {
-	shurl := pat.Param(r, "lnk")
+	shurl := Param(r, "lnk")
 	err := db.QueryRow("SELECT OriginalURL FROM URLstorage WHERE ShortedURL=?",
 		shurl).Scan()
 	if err != nil {
@@ -100,7 +119,15 @@ func InitDB() {
   PRIMARY KEY (ID))`)
 }
 
+func IndexLoad() {
+	tINDEX, err := ioutil.ReadFile("index.html")
+	if err != nil {
+		log.Fatal("Index There is No IndexFile")
+	}
+	INDEX = string(tINDEX)
+}
 func main() {
+	IndexLoad()
 	tdb, err := sql.Open("mysql", DSN)
 	if err != nil {
 		log.Fatal("DB Connection Failed")
@@ -117,11 +144,11 @@ func main() {
 	InitDB()
 
 	mux := goji.NewMux()
-	mux.HandleFunc(pat.Get("/"), Index)
-	mux.HandleFunc(pat.Put("/:lnk"), CreateShortLink)
-	mux.HandleFunc(pat.Delete("/:lnk"), DeleteShortLink)
-	mux.HandleFunc(pat.Get("/:lnk"), GetShortLink)
-	mux.HandleFunc(pat.Post("/:lnk"), GetShortLink)
-	mux.HandleFunc(pat.Head("/:lnk"), CheckShortLink)
+	mux.HandleFunc(Get("/"), Index)
+	mux.HandleFunc(Put("/:lnk"), CreateShortLink)
+	mux.HandleFunc(Delete("/:lnk"), DeleteShortLink)
+	mux.HandleFunc(Get("/:lnk"), GetShortLink)
+	mux.HandleFunc(Post("/:lnk"), GetShortLink)
+	mux.HandleFunc(Head("/:lnk"), CheckShortLink)
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
