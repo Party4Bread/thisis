@@ -6,6 +6,8 @@
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+
     <style>
         body{
             background: linear-gradient(90deg,#00d2ff,#3a7bd5);
@@ -13,22 +15,56 @@
             width: 100vw;
             margin: 0;
         }
+        .centerer{
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container{
+            background-color:white;
+            border-radius: 100em;
+            padding: 3em 4em;
+        }
     </style>
+    
 </head>
 <body>
-    <div class="container">
+    <div class="centerer">
+        <div class="container z-depth-2">
         <form action="" onsubmit="CreateLink()">
-            <label for="originalurl" onchange="">줄이고 싶은 URL</label>
-            <input type="text" name="originalurl" id="originalurl"><br>
-            <label for="shortedurl">줄여진 URL : thisis.sunrin.life/</label>
-            <input type="text" id="shortedurl"><br>
-            <input type="checkbox" id="autogen">URL자동생성<br>
+            <div class="row">
+                <div class="col s12 m6 input-field">
+                    <label for="originalurl">줄이고 싶은 URL</label>
+                    <input class="validate" type="url" name="originalurl" id="originalurl" placeholder="http[s]://">
+                    <span class="helper-text" data-error="잘못된 URL입니다" data-success="올바른 URL입니다"></span>
+                </div>
+                <div class="col s12 m6 input-field"> 
+                    <label for="shortedurl">줄여진 URL</label>
+                    <input class="validate" type="text" id="shortedurl">
+                    <span class="helper-text" data-error="영문 또는 숫자로만 구성되어야 합니다" data-success="올바른 URL입니다"></span> 
+                </div>
+                <div class="switch col s12">
+                    <label>
+                        <input type="checkbox" id="autogen">
+                        <span class="lever"></span>
+                        URL자동생성
+                    </label>
+                </div>
+            </div>
             <input type="submit">
         </form>
+    </div>    
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    
     <script>
+        M.AutoInit();
         var shortedurl=document.getElementById("shortedurl"),
         autogen=document.getElementById("autogen");
+        const charset="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         autogen.checked=false;
         autogen.addEventListener("change",function(){
            shortedurl.disabled=this.checked;
@@ -37,7 +73,19 @@
         document.getElementById("originalurl").addEventListener("input",function () {
            if(shortedurl.disabled)GenRandomLink();
         });
+        shortedurl.addEventListener("input",function () {
 
+            CheckValidShortenLink();    
+        });
+        document.getElementById("domainch").innerText=location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '')+'/';
+        function CheckValidShortenLink(){
+            let validity=true
+            shortedurl.value.forEach(element => {
+                validity&=(charset.indexOf(element)!=-1)
+            });
+            if(!validity) shortedurl.setCustomValidity("영문 또는 숫자로만 구성되어야 합니다")
+            else shortedurl.setCustomValidity("")
+        }
         /**
          * @return {boolean}
          */
@@ -64,7 +112,6 @@
             });
             return false;
         }
-        const charset="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         function GenRandomLink() {
             let hash=_hash52_1a_fast(document.getElementById("originalurl").value);
             let restr="";
