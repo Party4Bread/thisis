@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            background: linear-gradient(90deg,#00d2ff,#3a7bd5);
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <form action="" onsubmit="CreateLink()">
+            <label for="originalurl" onchange="">줄이고 싶은 URL</label>
+            <input type="text" name="originalurl" id="originalurl"><br>
+            <label for="shortedurl">줄여진 URL : thisis.sunrin.life/</label>
+            <input type="text" id="shortedurl"><br>
+            <input type="checkbox" id="autogen">URL자동생성<br>
+            <input type="submit">
+        </form>
+    </div>
+    <script>
+        var shortedurl=document.getElementById("shortedurl"),
+        autogen=document.getElementById("autogen");
+        autogen.checked=false;
+        autogen.addEventListener("change",function(){
+           shortedurl.disabled=this.checked;
+           if(this.checked)GenRandomLink();
+        });
+        document.getElementById("originalurl").addEventListener("input",function () {
+           if(shortedurl.disabled)GenRandomLink();
+        });
+
+        /**
+         * @return {boolean}
+         */
+        function CreateLink() {//
+            let fd = new FormData();
+            fetch(`/${shortedurl.value}`,{
+                method:'PUT',
+                body:{
+                    "changekey":prompt("링크 관리를 위한 고유키를 넣어주세요","DEFAULTKEY"),
+                    "originalurl":document.getElementById("originalurl").value
+                }
+            }).then(function (data) {
+                switch (data.status) {
+                    case 200:
+                        alert("성공적으로 링크가 변경되었습니다.");
+                        break;
+                    case 201:
+                        alert("성공적으로 링크가 추가되었습니다.");
+                        break;
+                    case 401:
+                        alert("고유키가 달라서 링크 변경에 실패했습니다.");
+                        break;
+                }
+            });
+            return false;
+        }
+        const charset="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        function GenRandomLink() {
+            let hash=_hash52_1a_fast(document.getElementById("originalurl").value);
+            let restr="";
+            while(hash>0){
+                restr+=charset[hash%(charset.length)];
+                hash=Math.floor(hash/charset.length);
+            }
+            shortedurl.value=restr;
+        }
+
+        function _hash52_1a_fast(str){
+            let i,l=str.length-3,t0=0,v0=0x2325,t1=0,v1=0x8422,t2=0,v2=0x9ce4,t3=0,v3=0xcbf2;
+
+            for (i = 0; i < l;) {
+                v0^=str.charCodeAt(i++);
+                t0=v0*435;t1=v1*435;t2=v2*435;t3=v3*435;
+                t2+=v0<<8;t3+=v1<<8;
+                t1+=t0>>>16;v0=t0&65535;t2+=t1>>>16;v1=t1&65535;v3=(t3+(t2>>>16))&65535;v2=t2&65535;
+                v0^=str.charCodeAt(i++);
+                t0=v0*435;t1=v1*435;t2=v2*435;t3=v3*435;
+                t2+=v0<<8;t3+=v1<<8;
+                t1+=t0>>>16;v0=t0&65535;t2+=t1>>>16;v1=t1&65535;v3=(t3+(t2>>>16))&65535;v2=t2&65535;
+                v0^=str.charCodeAt(i++);
+                t0=v0*435;t1=v1*435;t2=v2*435;t3=v3*435;
+                t2+=v0<<8;t3+=v1<<8;
+                t1+=t0>>>16;v0=t0&65535;t2+=t1>>>16;v1=t1&65535;v3=(t3+(t2>>>16))&65535;v2=t2&65535;
+                v0^=str.charCodeAt(i++);
+                t0=v0*435;t1=v1*435;t2=v2*435;t3=v3*435;
+                t2+=v0<<8;t3+=v1<<8;
+                t1+=t0>>>16;v0=t0&65535;t2+=t1>>>16;v1=t1&65535;v3=(t3+(t2>>>16))&65535;v2=t2&65535;
+            }
+
+            while(i<l+3){
+                v0^=str.charCodeAt(i++);
+                t0=v0*435;t1=v1*435;t2=v2*435;t3=v3*435;
+                t2+=v0<<8;t3+=v1<<8;
+                t1+=t0>>>16;v0=t0&65535;t2+=t1>>>16;v1=t1&65535;v3=(t3+(t2>>>16))&65535;v2=t2&65535;
+            }
+
+            return (v3&15) * 281474976710656 + v2 * 4294967296 + v1 * 65536 + (v0^(v3>>4));
+        }
+
+
+    </script>
+</body>
+</html>
