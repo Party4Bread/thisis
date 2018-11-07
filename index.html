@@ -42,7 +42,7 @@
                 </div>
                 <div class="col s12 m6 input-field"> 
                     <label for="shortedurl">줄여진 URL</label>
-                    <input class="validate" type="text" id="shortedurl">
+                    <input class="validate" type="text" id="shortedurl" placeholder="[A-Z,a-z,0-9]">
                     <span class="helper-text" data-error="영문 또는 숫자로만 구성되어야 합니다" data-success="올바른 URL입니다"></span> 
                 </div>
                 <div class="switch col s12">
@@ -74,15 +74,14 @@
            if(shortedurl.disabled)GenRandomLink();
         });
         shortedurl.addEventListener("input",function () {
-
             CheckValidShortenLink();    
         });
         document.getElementById("domainch").innerText=location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '')+'/';
         function CheckValidShortenLink(){
-            let validity=true
-            shortedurl.value.forEach(element => {
-                validity&=(charset.indexOf(element)!=-1)
-            });
+            let validity=true;
+            for(let i = 0;i<shortedurl.value.length;i++){
+                validity&=(charset.indexOf(shortedurl.value[i])!==-1)
+            }
             if(!validity) shortedurl.setCustomValidity("영문 또는 숫자로만 구성되어야 합니다")
             else shortedurl.setCustomValidity("")
         }
@@ -113,6 +112,8 @@
             return false;
         }
         function GenRandomLink() {
+            shortedurl.classList.remove("invalid");
+            shortedurl.classList.add("valid");
             let hash=_hash52_1a_fast(document.getElementById("originalurl").value);
             let restr="";
             while(hash>0){
