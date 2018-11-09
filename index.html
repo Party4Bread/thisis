@@ -33,7 +33,7 @@
 <body>
     <div class="centerer">
         <div class="container z-depth-2">
-        <form action="" onsubmit="CreateLink()">
+        <form action="" onsubmit="return CreateLink()">
             <div class="row">
                 <div class="col s12 m6 input-field">
                     <label for="originalurl">줄이고 싶은 URL</label>
@@ -90,12 +90,11 @@
          */
         function CreateLink() {//
             let fd = new FormData();
+            fd.set("changekey",prompt("링크 관리를 위한 고유키를 넣어주세요","DEFAULTKEY"));
+            fd.set("originalurl",document.getElementById("originalurl").value);
             fetch(`/${shortedurl.value}`,{
                 method:'PUT',
-                body:{
-                    "changekey":prompt("링크 관리를 위한 고유키를 넣어주세요","DEFAULTKEY"),
-                    "originalurl":document.getElementById("originalurl").value
-                }
+                body:fd
             }).then(function (data) {
                 switch (data.status) {
                     case 200:
