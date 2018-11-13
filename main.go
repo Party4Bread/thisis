@@ -1,18 +1,15 @@
 package main
 
 import (
-	"database/sql"
+	"./thisis"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"goji.io"
 	. "goji.io/pat"
-	"golang.org/x/crypto/bcrypt"
 	"io/ioutil"
 	"log"
 	"net/http"
 )
-
-var db *sql.DB
 
 const DSN = "thisis:thisispasswd@/thisis"
 
@@ -22,101 +19,98 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	IndexLoad()
 	fmt.Fprint(w, INDEX)
 }
+
 func CreateShortLink(w http.ResponseWriter, r *http.Request) {
-	shurl, passwd, originURL :=
-		Param(r, "lnk"), r.FormValue("changekey"), r.FormValue("originalurl")
-
-	var keyhash string
-	err := db.QueryRow("SELECT ChangeKey FROM URLstorage WHERE ShortedURL=?",
-		shurl).Scan(&keyhash)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			phash, err := bcrypt.GenerateFromPassword([]byte(passwd), 14)
-			if err != nil {
-				log.Fatal("bcrypt failure")
-			}
-			db.Query("INSERT INTO urlstorage (ShortedURL, OriginalURL, ChangeKey) VALUES (?,?,?)",
-				shurl, originURL, phash)
-			w.WriteHeader(http.StatusCreated)
-		} else {
-			log.Fatal("DB ERROR")
+	link :=
+		thisis.Link{
+			r.FormValue("originalurl"),
+			Param(r, "lnk"),
+			r.FormValue("changekey"),
 		}
-	} else {
-		if bcrypt.CompareHashAndPassword([]byte(keyhash), []byte(passwd)) == nil {
-			db.Query("UPDATE urlstorage SET OriginalURL=? WHERE ShortedURL=?",
-				originURL, shurl)
+
+	res := thisis.IsShortLinkExist(link)
+
+	switch res {
+	case thisis.Exist:
+		res := thisis.CheckLinkPassword(link)
+		if res == thisis.WrongPassword {
+			w.WriteHeader(http.StatusUnauthorized)
+		} else if res == thisis.Success {
+			thisis.UpdateShortLink(link)
 			w.WriteHeader(http.StatusOK)
 		} else {
-			w.WriteHeader(http.StatusUnauthorized)
+			log.Panic(res)
 		}
+		break
+	case thisis.NotExist:
+		thisis.AddShortLink(link)
+		w.WriteHeader(http.StatusCreated)
+		break
+	case thisis.DatabaseFailure:
+		log.Print("DB ERROR")
+		w.WriteHeader(http.StatusInternalServerError)
+		break
 	}
 }
 
 func DeleteShortLink(w http.ResponseWriter, r *http.Request) {
-	shurl, passwd := Param(r, "lnk"), r.FormValue("changekey")
-
-	var keyhash string
-	err := db.QueryRow("SELECT ChangeKey FROM URLstorage WHERE ShortedURL=?",
-		shurl).Scan(&keyhash)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNoContent)
+	link := thisis.Link{
+		"",
+		Param(r, "lnk"),
+		r.FormValue("changekey"),
+	}
+	res := thisis.IsShortLinkExist(link)
+	if res == thisis.Exist {
+		res = thisis.CheckLinkPassword(link)
+		if res == thisis.Success {
+			thisis.DeleteShortLink(link)
+			w.WriteHeader(http.StatusOK)
+		} else if res == thisis.WrongPassword {
+			w.WriteHeader(http.StatusUnauthorized)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Fatal("Database Fault on URL /" + shurl)
+			log.Fatal("Bcrypt Fault on URL /" + link.ShortUrl)
 		}
+	} else if res == thisis.NotExist {
+		w.WriteHeader(http.StatusNoContent)
 	} else {
-		if bcrypt.CompareHashAndPassword([]byte(keyhash), []byte(passwd)) == nil {
-			db.Query("DELETE FROM URLstorage WHERE ShortedURL=?",
-				shurl)
-			w.WriteHeader(http.StatusOK)
-		} else {
-			w.WriteHeader(http.StatusUnauthorized)
-		}
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal("Database Fault on URL /" + link.ShortUrl)
 	}
 }
 
 func GetShortLink(w http.ResponseWriter, r *http.Request) {
-	var originalUrl string
-	shurl := Param(r, "lnk")
-	err := db.QueryRow("SELECT OriginalURL FROM URLstorage WHERE ShortedURL=?",
-		shurl).Scan(&originalUrl)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.NotFound(w, r)
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Fatal("Database Fault on URL /" + shurl)
-		}
+	link := thisis.Link{
+		"",
+		Param(r, "lnk"),
+		"",
+	}
+	res := thisis.GetShortLink(&link)
+	if res == thisis.Success {
+		http.Redirect(w, r, link.OriginalURL, http.StatusFound)
+	} else if res == thisis.NotExist {
+		http.NotFound(w, r)
 	} else {
-		http.Redirect(w, r, originalUrl, http.StatusFound)
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal("Database Fault on URL /" + link.ShortUrl)
 	}
 }
 
 func CheckShortLink(w http.ResponseWriter, r *http.Request) {
 	shurl := Param(r, "lnk")
-	err := db.QueryRow("SELECT OriginalURL FROM URLstorage WHERE ShortedURL=?",
-		shurl).Scan()
-	if err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNoContent)
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Fatal("Database Fault on URL /" + shurl)
-		}
-	} else {
+	res := thisis.IsShortLinkExist(thisis.Link{"", shurl, ""})
+	switch res {
+	case thisis.Exist:
 		w.WriteHeader(http.StatusOK)
+		break
+	case thisis.NotExist:
+		w.WriteHeader(http.StatusNoContent)
+		break
+	case thisis.DatabaseFailure:
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal("Database Fault on URL /" + shurl)
+		break
 	}
-}
-
-func InitDB() {
-	db.Query(`CREATE TABLE IF NOT EXISTS URLStorage(
-  ID           INT            NOT NULL    AUTO_INCREMENT,
-  ShortedURL   VARCHAR(45),
-  OriginalURL  TEXT,
-  ChangeKey    VARCHAR(60),
-  PRIMARY KEY (ID))`)
 }
 
 func IndexLoad() {
@@ -126,25 +120,17 @@ func IndexLoad() {
 	}
 	INDEX = string(tINDEX)
 }
+
 func main() {
+
 	IndexLoad()
-	tdb, err := sql.Open("mysql", DSN)
-	if err != nil {
-		log.Fatal("DB Connection Failed")
-		panic(err.Error())
-	}
-	defer tdb.Close()
-	err = tdb.Ping()
-	if err != nil {
-		log.Fatal("DB Ping Failed")
-		panic(err.Error())
-	}
-
-	db = tdb
-	InitDB()
-
+	thisis.ConnectToDB(DSN)
+	defer thisis.DB.Close()
+	thisis.InitDB()
+	//reg := regexp.MustCompile(`^/(?P<lnk>[A-Za-z0-9]+)$`)
 	mux := goji.NewMux()
 	mux.HandleFunc(Get("/"), Index)
+	mux.HandleFunc(Get("/:file.:ext"), http.NotFound)
 	mux.HandleFunc(Put("/:lnk"), CreateShortLink)
 	mux.HandleFunc(Delete("/:lnk"), DeleteShortLink)
 	mux.HandleFunc(Get("/:lnk"), GetShortLink)
