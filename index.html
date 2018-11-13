@@ -25,7 +25,7 @@
         .container{
             background-color:white;
             border-radius: 100em;
-            padding: 3em 4em;
+            padding: 4em 4em;
         }
     </style>
     
@@ -37,23 +37,24 @@
             <div class="row">
                 <div class="col s12 m6 input-field">
                     <label for="originalurl">줄이고 싶은 URL</label>
-                    <input class="validate" type="url" name="originalurl" id="originalurl" placeholder="http[s]://">
+                    <input required="required" class="validate" type="url" name="originalurl" id="originalurl" placeholder="http[s]://">
                     <span class="helper-text" data-error="잘못된 URL입니다" data-success="올바른 URL입니다"></span>
                 </div>
                 <div class="col s12 m6 input-field"> 
                     <label for="shortedurl">줄여진 URL</label>
-                    <input class="validate" type="text" id="shortedurl" placeholder="[A-Z,a-z,0-9]">
+                    <input required="required" pattern="([a-zA-Z0-9]+)" class="validate" type="text" id="shortedurl" placeholder="[A-Z,a-z,0-9]">
                     <span class="helper-text" data-error="영문 또는 숫자로만 구성되어야 합니다" data-success="올바른 URL입니다"></span> 
                 </div>
-                <div class="switch col s12">
+                <div class="switch col s6">
                     <label>
                         <input type="checkbox" id="autogen">
                         <span class="lever"></span>
                         URL자동생성
                     </label>
                 </div>
+                <button class="btn col waves-effect waves-light offset-s2 s4 offset-m10 m2" type="submit" name="action">만들기
+                </button>
             </div>
-            <input type="submit">
         </form>
     </div>    
     </div>
@@ -82,8 +83,8 @@
             for(let i = 0;i<shortedurl.value.length;i++){
                 validity&=(charset.indexOf(shortedurl.value[i])!==-1)
             }
-            if(!validity) shortedurl.setCustomValidity("영문 또는 숫자로만 구성되어야 합니다")
-            else shortedurl.setCustomValidity("")
+            if(!validity) shortedurl.setCustomValidity("영문 또는 숫자로만 구성되어야 합니다");
+            else shortedurl.setCustomValidity("");
         }
         /**
          * @return {boolean}
