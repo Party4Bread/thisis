@@ -100,7 +100,7 @@ func CheckShortLink(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func SetupServer(mux goji.Mux, DSN string) {
+func SetupServer(mux *goji.Mux, DSN string) {
 
 	ConnectToDB(DSN)
 	defer DB.Close()
