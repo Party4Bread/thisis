@@ -11,8 +11,6 @@ import (
 	"net/http"
 )
 
-const DSN = "thisis:thisispasswd@/thisis"
-
 var INDEX string
 
 func Index(w http.ResponseWriter, r *http.Request) {
@@ -122,8 +120,9 @@ func IndexLoad() {
 }
 
 func main() {
-
 	IndexLoad()
+	DSN := "thisis:thisispasswd@/thisis"
+	//flag.String()
 	thisis.ConnectToDB(DSN)
 	defer thisis.DB.Close()
 	thisis.InitDB()
