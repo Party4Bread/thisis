@@ -33,7 +33,7 @@ func PasswordHash(password string) []byte {
 
 func AddShortLink(link Link) Result {
 	phash := PasswordHash(link.Password)
-	_, err := DB.Query("INSERT INTO urlstorage (ShortedURL, OriginalURL, ChangeKey) VALUES (?,?,?)",
+	_, err := DB.Query("INSERT INTO URLStorage (ShortedURL, OriginalURL, ChangeKey) VALUES (?,?,?)",
 		link.ShortUrl, link.OriginalURL, phash)
 	if err != nil {
 		return DatabaseFailure
@@ -43,7 +43,7 @@ func AddShortLink(link Link) Result {
 
 func IsShortLinkExist(link Link) Result {
 	var exists bool
-	err := DB.QueryRow("SELECT exists(SELECT OriginalURL FROM URLstorage WHERE ShortedURL=?)",
+	err := DB.QueryRow("SELECT exists(SELECT OriginalURL FROM URLStorage WHERE ShortedURL=?)",
 		link.ShortUrl).Scan(&exists)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -62,7 +62,7 @@ func IsShortLinkExist(link Link) Result {
 func CheckLinkPassword(link Link) Result {
 	var keyhash string
 
-	err := DB.QueryRow("SELECT ChangeKey FROM URLstorage WHERE ShortedURL=?",
+	err := DB.QueryRow("SELECT ChangeKey FROM URLStorage WHERE ShortedURL=?",
 		link.ShortUrl).Scan(&keyhash)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -82,7 +82,7 @@ func CheckLinkPassword(link Link) Result {
 }
 
 func UpdateShortLink(link Link) Result {
-	_, err := DB.Query("UPDATE urlstorage SET OriginalURL=? WHERE ShortedURL=?",
+	_, err := DB.Query("UPDATE URLStorage SET OriginalURL=? WHERE ShortedURL=?",
 		link.OriginalURL, link.ShortUrl)
 	if err != nil {
 		return DatabaseFailure
@@ -91,7 +91,7 @@ func UpdateShortLink(link Link) Result {
 }
 
 func DeleteShortLink(link Link) Result {
-	_, err := DB.Query("DELETE FROM URLstorage WHERE ShortedURL=?",
+	_, err := DB.Query("DELETE FROM URLStorage WHERE ShortedURL=?",
 		link.ShortUrl)
 	if err != nil {
 		return DatabaseFailure
@@ -100,7 +100,7 @@ func DeleteShortLink(link Link) Result {
 }
 
 func GetShortLink(link *Link) Result {
-	err := DB.QueryRow("SELECT OriginalURL FROM URLstorage WHERE ShortedURL=?",
+	err := DB.QueryRow("SELECT OriginalURL FROM URLStorage WHERE ShortedURL=?",
 		link.ShortUrl).Scan(link.OriginalURL)
 	if err != nil {
 		if err == sql.ErrNoRows {
