@@ -103,7 +103,7 @@ func CheckShortLink(w http.ResponseWriter, r *http.Request) {
 func SetupServer(mux *goji.Mux, DSN string) {
 
 	ConnectToDB(DSN)
-	defer DB.Close()
+	//defer DB.Close()
 	InitDB()
 
 	mux.HandleFunc(pat.Get("/:file.:ext"), http.NotFound)

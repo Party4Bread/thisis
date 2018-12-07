@@ -32,5 +32,6 @@ func main() {
 	mux := goji.NewMux()
 	mux.HandleFunc(Get("/"), Index)
 	thisis.SetupServer(mux, DSN)
+	defer thisis.DB.Close()
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
